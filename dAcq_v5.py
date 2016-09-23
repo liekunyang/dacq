@@ -49,7 +49,6 @@ import array
 import time
 import os
 import datetime
-import concurrent.futures
 
 import yaml
 
@@ -410,9 +409,7 @@ class pyMS(QMainWindow, Ui_MainWindow):
     def stop(self):
         print("STOP")
         self.timer.stop()
-#        self.timer3.stop()
-#        self.timer4.stop()
-#
+
         if self.exp_type != "test":
             self.timer2.stop()
 
@@ -453,9 +450,7 @@ class pyMS(QMainWindow, Ui_MainWindow):
         self.cal = None
 
     def myupdate(self):
-        bench = time.time()
-#        benchmark=[]
-#        # check if events are activated:
+        # check if events are activated:
         if not self.btn_bic.isEnabled():
             self.event_activate()
 
@@ -473,45 +468,24 @@ class pyMS(QMainWindow, Ui_MainWindow):
             # stick first packet with last packet of previous buffer
             self.newdata[0] = self.last + "-" + self.newdata[0]
             self.last = self.newdata[-1]
-
         else:
             # remove first packet
             self.newdata = self.newdata[1:len(self.newdata)]
 
-
-        # calculate time between 2 packets
-
+        # packets
         if self.ts['npackets'] > 0:
             self.getvolts2()
             self.df = self.df.append(pd.DataFrame(data=self.lastnd[1:], columns=self.dfcolumns), ignore_index=True)
             self.dfcc = self.dfcc.append(pd.DataFrame(data=self.lastnd[1:], columns=self.dfcolumns), ignore_index=True)
 
-
-#        benchmark.append(str(round(time.time()-bench, 5)))
-#        bench2=time.time()
-
-
         # calculate concentrations and derivatives
         self.update_data()
-#
-#        benchmark.append(str(round(time.time()-bench2, 5)))
-#        bench3=time.time()
 
         # update graphs
         self.update_graph()
 
-#        benchmark.append(str(round(time.time()-bench3, 5)))
-#        bench4=time.time()
-
         # update UI
         self.update_ui()
-
-#        benchmark.append(str(round(time.time()-bench4, 5)))
-#        benchmark.append(str(round(time.time()-bench, 5)))
-#
-#        print("|".join(benchmark))
-#         print(time.time() - bench)
-
 
     def getvolts2(self):
         """
@@ -520,7 +494,7 @@ class pyMS(QMainWindow, Ui_MainWindow):
         self.lastnd = np.zeros(shape=(1,len(self.dfcolumns)), dtype=float)
 
         # timestamp start
-        self.st = self.previous_packet - self.exp_start
+        st = self.previous_packet - self.exp_start
 
         # average time between each packet
         self.ts['packet_time'] = (self.packet_start - self.previous_packet) / self.ts['npackets']
@@ -529,7 +503,7 @@ class pyMS(QMainWindow, Ui_MainWindow):
             ret = None
 
             # set timestamp value
-            ret = [round(self.st + (c * self.ts['packet_time']),2)]
+            ret = [round(st + (c * self.ts['packet_time']), 2)]
 
             # remove empty elements
             e = list(filter(None, d.split("-")))
@@ -547,7 +521,7 @@ class pyMS(QMainWindow, Ui_MainWindow):
 
             # add empty event columns
             ret = self.myround(ret)
-            ret = np.append(ret, np.empty(shape=(1,2)))
+            ret = np.append(ret, np.empty(shape=(1, 2)))
 
             # append to array
             self.lastnd = np.append(self.lastnd, self.myround([ret]), axis=0)
@@ -568,7 +542,6 @@ class pyMS(QMainWindow, Ui_MainWindow):
                             str(self.total_packets) + " packets |  "
             self.statusbar.showMessage(statusmessage)
 
-
     def check_file_exists(self):
         while os.path.exists(self.dffilename):
 
@@ -585,9 +558,9 @@ class pyMS(QMainWindow, Ui_MainWindow):
 
 
                     except ValueError:  # else just add a number
-                        sugsamplename = sugsamplename + "_2"
+                        sugsamplename += "_2"
                 else:
-                    sugsamplename = sugsamplename + "_2"
+                    sugsamplename += "_2"
 
                 self.dffilename = os.path.join(self.datafolder, self.user, self.today, "rawdata",
                                                self.today + "_" + str(sugsamplename) + ".csv")
@@ -605,7 +578,6 @@ class pyMS(QMainWindow, Ui_MainWindow):
                                                self.today + "_" + self.samplename + ".csv")
                 self.dfccfilename = os.path.join(self.datafolder, self.user, self.today,
                                                  self.today + "_" + self.samplename + ".csv")
-
 
     def create_samplefile(self):
         # Create or append to samples file
@@ -647,7 +619,6 @@ class pyMS(QMainWindow, Ui_MainWindow):
 
         # save to file
         self.sampledf.to_csv(self.samplefile, index=False, encoding='ISO-8859-1')
-
 
     def set_membrane(self):
         Ui_Membrane_Dialog.add_membrane()
@@ -804,13 +775,6 @@ class pyMS(QMainWindow, Ui_MainWindow):
         df['d' + str(m) + 'dt_d'] = dx - ((mx / m40) * (d40 - (m40 * self.cal['cons40'])))
         return df
 
-
-
-
-    def derive(t, values):
-        self.regdf['d' ' t'] = self.myround(self.rolling_linear_reg(t, m32))
-
-
     def update_data(self):
         # calculate concentrations
         for mass in [44, 45, 46, 47, 49, 32]:
@@ -951,7 +915,6 @@ class pyMS(QMainWindow, Ui_MainWindow):
             self.lab_datomic_fractiondt.setText(str(np.array(self.dfcc.at[idx, 'dAFdt'])))
             self.lab_ER47.setText(str(np.array(self.dfcc.at[idx, 'enrichrate47'])))
             self.lab_ER49.setText(str(np.array(self.dfcc.at[idx, 'enrichrate49'])))
-
 
     def update_graph(self):
         """
@@ -1108,14 +1071,6 @@ class pyMS(QMainWindow, Ui_MainWindow):
                              "BIC": "Added " + str(self.bic_vol.text()) + " " + str(
                                  self.lab_bicvolunit.text()) + " of " + str(self.bic_cc.text()) + " " + str(
                                  self.lab_bicccunit.text()) + " bicarbonate",
-                             "CELLS": "Added " + str(self.cells_vol.text()) + " " + str(
-                                 self.lab_cellsvolunit.text()) + " of cells at " +
-                                      str(self.cells_cc.text()) + " " + str(
-                                 self.lab_cellsccunit.text()) + " chlorophyll (" +
-                                      str(self.myround(
-                                          float(self.cells_vol.text()) * float(self.cells_cc.text()) / float(
-                                              self.cuvette))) +
-                                      " " + str(self.lab_cellsccunit.text()) + " final)",
                              "LIGHT ON": "Light ON (" + str(self.light_int.text()) + " µmol/m2/s)",
                              "LIGHT OFF": "Light OFF",
                              "AZ": "Added " + str(self.az_vol.text()) + " µL of " + str(self.az_cc.text()) + " " + str(
@@ -1126,6 +1081,16 @@ class pyMS(QMainWindow, Ui_MainWindow):
                                  self.lab_ezccunit.text()) + " EZ (" + str(
                                  self.myround(float(self.ez_vol.text()) * float(self.ez_cc.text())) / float(
                                      self.cuvette)) + " " + str(self.lab_ezccunit.text()) + " final)"}
+
+
+        if str(self.cells_cc.text()) == "0":
+            self.eventdetails["CELLS"] = "Added " + str(self.cells_vol.text()) + " " + str(
+                    self.lab_cellsvolunit.text()) + " of cells (" + \
+                    str(self.cells_cc.text()) + " X)"
+        else:
+            self.eventdetails["CELLS"] = "Added " + str(self.cells_vol.text()) + " " + str(
+                    self.lab_cellsvolunit.text()) + " of cells"
+
 
         eventtime = self.df.loc[len(self.df.index) - 1, 'time']
 
@@ -1183,7 +1148,6 @@ class pyMS(QMainWindow, Ui_MainWindow):
                                     0] * factor[self.yscale])
         return r
 
-
     def change_user(self):
         self.user = Ui_userDialog.getUser(user=self.user)
         self.actionUser.setText("User: " + str(self.user))
@@ -1202,11 +1166,9 @@ class pyMS(QMainWindow, Ui_MainWindow):
             self.cuvette = cuvette
             self.actionCuvette.setText("Cuvette: " + str(self.cuvette))
 
-
     def change_datafolder(self):
         self.datafolder = QtGui.QFileDialog.getExistingDirectory(self, 'Select folder for data', self.datafolder)
         self.actionDatafolder.setText("Datafolder: " + str(self.datafolder))
-
 
     def change_smoothing(self):
         smoothing, ok = QtGui.QInputDialog.getInt(self, 

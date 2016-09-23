@@ -962,8 +962,8 @@ class Ui_MainWindow(object):
         self.btn_cells.setText(_translate("MainWindow", "Cells [3]", None))
         self.cells_vol.setText(_translate("MainWindow", "10", None))
         self.lab_cellsvolunit.setText(_translate("MainWindow", "µL", None))
-        self.cells_cc.setText(_translate("MainWindow", "2", None))
-        self.lab_cellsccunit.setText(_translate("MainWindow", "mg/mL", None))
+        self.cells_cc.setText(_translate("MainWindow", "0", None))
+        self.lab_cellsccunit.setText(_translate("MainWindow", "X", None))
         self.btn_az.setText(_translate("MainWindow", "AZ [1]", None))
         self.az_vol.setText(_translate("MainWindow", "1", None))
         self.lab_azvolunit.setText(_translate("MainWindow", "µL", None))
@@ -1000,8 +1000,7 @@ class Ui_MainWindow(object):
         self.actionAdd_Electrical_Zeros.setText(_translate("MainWindow", "Add Electrical Zeros", None))
         self.actionAdd_Consumptions.setText(_translate("MainWindow", "Add Consumptions", None))
         
-        #colors 
-        
+        #colors
         self.chk['Mass32'].setStyleSheet("color:rgb(250,0,0)")
         self.chk['Mass40'].setStyleSheet("color:rgb(200,150,0)")
         self.chk['Mass44'].setStyleSheet("color:rgb(0,250,0)")
