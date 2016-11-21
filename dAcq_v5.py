@@ -972,76 +972,81 @@ class pyMS(QMainWindow, Ui_MainWindow):
         # display message box
         QMessageBox.about(self, "Consumption", self.reportmsg)
 
-    def cal_co2(self):
-        # look for calibration folder
-        bicarb_vol = float(self.calib_volinject)
-        bicarb_cc = float(self.calib_bicarb_cc)
-        cuvette = int(self.cuvette)
 
-        # open list of past calibrations
-        #        cals = pd.read_csv(self.calfile)
-        #        q="(cuvette == " + str(cuvette) + ") & (type='cal44')"
-        dfcal = self.df.loc[:, ['time', 'Mass44']]
+def cal_co2(self):
+    # look for calibration folder
+    bicarb_vol = float(self.calib_volinject)
+    bicarb_cc = float(self.calib_bicarb_cc)
+    cuvette = int(self.cuvette)
 
-        # deriv
-        dM44dt = dfcal.Mass44.diff().fillna(0) / dfcal.time.diff().fillna(1)
-        M44 = dfcal.Mass44
+    # open list of past calibrations
+    dfcal = self.df.loc[:, ['time', 'Mass44']]
 
-        # find injections
-        # rescale data from 0 to 1 to find indices
-        z = peakutils.prepare.scale(dM44dt, new_range=(0.0, 1.0), eps=1e-09)
+    # deriv
+    dM44dt = dfcal.Mass44.diff().fillna(0) / dfcal.time.diff().fillna(1)
+    M44 = dfcal.Mass44.tolist()
 
-        # finds indices of peaks
-        indexes = peakutils.indexes(z[0], thres=0.7, min_dist=300)
+    # find injections
+    # rescale data from 0 to 1 to find indices
+    z = peakutils.prepare.scale(dM44dt, new_range=(0.0, 1.0), eps=1e-09)
+    #        print('z=',z)
 
-        # interpolate
-        # peaks = peakutils.interpolate(dfcal.time, z[0], ind=indexes)
-        peaks = list(map(int, indexes))
+    # finds indices of peaks
+    indexes = peakutils.indexes(z[0], thres=0.7, min_dist=300)
+    print('indexes=', indexes)
+    # interpolate
+    # peaks = peakutils.interpolate(dfcal.time, z[0], ind=indexes)
+    peaks = [int(x) for x in indexes]
+    # peaks = list(map(int, indexes))
 
-        # add first and last indices
-        peaks.insert(0, 0)
-        peaks.append(max(dfcal.index))
-        # print("peaks=",peaks)
+    # add first and last indices
+    peaks.insert(0, 0)  # add a "peak" at zero
+    peaks.append(max(dfcal.index))  # add a "peak" at the end to calculate differences
+    print("peaks=", peaks)
 
-        plateaux = []
-        for c in range(len(peaks) - 1):  # for each injection
-            tmp = dM44dt[peaks[c]:peaks[c + 1]]
+    plateaux = []
+    for c in range(len(peaks) - 1):  # for each injection
+        tmp = dM44dt[peaks[c]:peaks[c + 1]]
 
-            # i = segment x | I = global x
-            i = np.where(tmp == min(tmp))[0]
-            I = i + peaks[c]
+        # i = x in segment between two peaks where mass44 is the most stable
+        # I = global x corresponding to i
 
-            plateaux.append(np.mean(M44[I - 10:I]))
+        i = np.where(tmp == min(tmp))[0]
+        print('i=', i)
 
-        jumps = np.diff(plateaux)
+        I = i + peaks[c]
+        print("I=", I)
+        print("M44[I - 10:I]", M44[I - 10:I])
+        plateaux.append(np.mean(M44[I - 10:I]))
 
-        print("plateaux =", plateaux)
-        print("jumps=", jumps)
+    jumps = np.diff(plateaux)
 
-        # How much bic was added in injection
-        c = 1000 * (
-            bicarb_cc * bicarb_vol) / cuvette  # 1000 * (millimole/Litre * microlitre) /  microlitre = micromole/Litre
+    print("plateaux =", plateaux)
+    print("jumps=", jumps)
 
-        if len(jumps) > 4:  # if enough values, we remove highest and lowest values
-            jumps = np.setdiff1d(jumps, [min(jumps), max(jumps)])
+    # How much bic was added in injection
+    # 1000 * (millimole/Litre * microlitre) /  microlitre = micromole/Litre
+    c = 1000 * (bicarb_cc * bicarb_vol) / cuvette
 
-        # calibration
-        # c (micromole/litre) / jumps (volts)
-        cal44 = self.myround(np.mean(c / jumps))  # calibration in micromole/litre/volt
+    if len(jumps) > 4:  # if enough values, we remove highest and lowest values
+        jumps = np.setdiff1d(jumps, [min(jumps), max(jumps)])
 
-        # prepare new row to insert
-        newrow = [str(self.today), str(cuvette), str(self.membraneid), 'cal44', str(cal44)]
-        with open(self.calfile, 'a') as f:
-            f.write(",".join(newrow) + "\n")
+    # calibration (in micromole/litre)/volt
+    cal44 = self.myround(np.mean(c / jumps))
 
-        self.reportmsg = "date: <b><font color='red'>" + str(self.today) + "</font></b> <br>" + \
-                         "cuvette: <b><font color='red'>" + str(self.cuvette) + "</font></b><br>" + \
-                         "type: <b><font color='red'>cal44</font></b><br>" + \
-                         "value: <b><font color='red'>" + str(cal44) + "</font></b><br>" + \
-                         "--------------------------------------------------------------------\n"
+    # prepare new row to insert
+    newrow = [str(self.today), str(cuvette), str(self.membraneid), 'cal44', str(cal44)]
+    with open(self.calfile, 'a') as f:
+        f.write(",".join(newrow) + "\n")
 
-        # display message box
-        QMessageBox.about(self, "CO2 calibration", self.reportmsg)
+    self.reportmsg = "date: <b><font color='red'>" + str(self.today) + "</font></b> <br>" + \
+                     "cuvette: <b><font color='red'>" + str(self.cuvette) + "</font></b><br>" + \
+                     "type: <b><font color='red'>cal44</font></b><br>" + \
+                     "value: <b><font color='red'>" + str(cal44) + "</font></b><br>" + \
+                     "--------------------------------------------------------------------\n"
+
+    # display message box
+    QMessageBox.about(self, "CO2 calibration", self.reportmsg)
 
     def cal_zeros(self):
         dfcal = self.df.loc[:, ['time', 'Mass44', 'Mass45', 'Mass46', 'Mass47', 'Mass49']]
